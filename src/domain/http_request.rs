@@ -71,17 +71,30 @@ impl HttpRequest {
         let target = request_line[1].to_string();
         // senza la & lui prova a spostarlo sullo stack ma non sa la dimensione reale
         let headers = HttpRequest::get_headers_if_any(&lines[1..]);
-
-        Ok(HttpRequest::new().method(method).headers(headers).target(target).build())
+        let body = HttpRequest::get_body_if_any(&lines[1..]);
+        Ok(HttpRequest::new().method(method).headers(headers).target(target).body(body.unwrap()).build())
     }
 
     fn get_headers_if_any(lines: &[&str]) -> HashMap<String, String> {
         if lines.is_empty() {
             return HashMap::new();
         }
-        lines.iter().filter(|l| !l.is_empty()).map(|l|{
+        lines.iter().filter(|l| !l.is_empty() || l.starts_with("Body")).map(|l|{
             let header = l.split(": ").collect::<Vec<&str>>();
             (header[0].to_string(), header[1].to_string())
         }).collect()
+    }
+
+    fn get_body_if_any(lines: &[&str]) -> Option<String> {
+        if lines.is_empty() {
+            return None;
+        }
+        let body = lines.iter()
+            .filter(|l| l.starts_with("Body"))
+            .map(|l| l.split(": ").nth(1).unwrap_or(""))
+            .collect::<Vec<&str>>()
+            .join("");
+
+        if body.is_empty() { None } else { Some(body) }
     }
 }

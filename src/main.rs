@@ -37,7 +37,7 @@ fn handle_request(mut stream: TcpStream, files_directory: Arc<String>) {
 }
 
 fn get_request(buf_reader: &mut BufReader<&mut TcpStream>) -> String {
-    let mut request = String::new();
+    let mut parts = String::new();
     let mut content_length = 0;
     for line in buf_reader.lines() {
         let line = line.expect("Error reading line");
@@ -48,20 +48,20 @@ fn get_request(buf_reader: &mut BufReader<&mut TcpStream>) -> String {
             let parts: Vec<&str> = line.split(':').collect();
             content_length = parts[1].trim().parse::<usize>().unwrap_or(0);
         }
-        request.push_str(&line);
-        request.push_str("\r\n");
+        parts.push_str(&line);
+        parts.push_str("\r\n");
     }
     if content_length > 0 {
         let mut body = vec![0; content_length];
         buf_reader.read_exact(&mut body).expect("Error reading body");
         let body_string = String::from("Body: ") + String::from_utf8_lossy(&body).as_ref();
-        request.push_str(body_string.as_str());
+        parts.push_str(body_string.as_str());
     }
-    request
+    parts
 }
 
-fn get_response(request: &str, files_directory: Arc<String>) -> HttpResponse {
-    let mut request = domain::http_request::HttpRequest::from_raw(request).expect("Error parsing request");
+fn get_response(parts: &str, files_directory: Arc<String>) -> HttpResponse {
+    let mut request = domain::http_request::HttpRequest::from_raw(parts).expect("Error parsing request");
     request.files_directory(files_directory.to_string());
     if request.headers.contains_key("Body") {
         request.body = Option::from(request.headers.get("Body").expect("Error body not present").to_string());
