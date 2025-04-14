@@ -25,7 +25,7 @@ fn get_files_directory() -> String {
         .position(|a| a == "--directory")
         .and_then(|p| args.get(p + 1))
         .cloned()
-        .unwrap_or("/home/daniele/Documenti/APPDEV/codecrafters-http-server/files".to_string())
+        .unwrap_or("/tmp".to_string())
 }
 
 fn handle_request(mut stream: TcpStream, files_directory: Arc<String>) {
@@ -37,8 +37,19 @@ fn handle_request(mut stream: TcpStream, files_directory: Arc<String>) {
 }
 
 fn get_request(buf_reader: &mut BufReader<&mut TcpStream>) -> String {
-    let mut parts = String::new();
+    let (content_length, mut parts) = handle_parts(buf_reader);
+    if content_length > 0 {
+        let mut body = vec![0; content_length];
+        buf_reader.read_exact(&mut body).expect("Error reading body");
+        let body_string = String::from("Body: ") + String::from_utf8_lossy(&body).as_ref();
+        parts.push_str(body_string.as_str());
+    }
+    parts
+}
+
+fn handle_parts(buf_reader: &mut BufReader<&mut TcpStream>) -> (usize,String) {
     let mut content_length = 0;
+    let mut parts = String::new();
     for line in buf_reader.lines() {
         let line = line.expect("Error reading line");
         if line.is_empty() {
@@ -51,22 +62,12 @@ fn get_request(buf_reader: &mut BufReader<&mut TcpStream>) -> String {
         parts.push_str(&line);
         parts.push_str("\r\n");
     }
-    if content_length > 0 {
-        let mut body = vec![0; content_length];
-        buf_reader.read_exact(&mut body).expect("Error reading body");
-        let body_string = String::from("Body: ") + String::from_utf8_lossy(&body).as_ref();
-        parts.push_str(body_string.as_str());
-    }
-    parts
+    (content_length, parts)
 }
 
 fn get_response(parts: &str, files_directory: Arc<String>) -> HttpResponse {
     let mut request = domain::http_request::HttpRequest::from_raw(parts).expect("Error parsing request");
     request.files_directory(files_directory.to_string());
-    if request.headers.contains_key("Body") {
-        request.body = Option::from(request.headers.get("Body").expect("Error body not present").to_string());
-        request.headers.remove("Body");
-    }
     domain::router::get_routes()
         .iter()
         .filter(|route| route.verb == request.method)

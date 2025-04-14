@@ -72,7 +72,12 @@ impl HttpRequest {
         // senza la & lui prova a spostarlo sullo stack ma non sa la dimensione reale
         let headers = HttpRequest::get_headers_if_any(&lines[1..]);
         let body = HttpRequest::get_body_if_any(&lines[1..]);
-        Ok(HttpRequest::new().method(method).headers(headers).target(target).body(body.unwrap()).build())
+        Ok(HttpRequest::new()
+            .method(method)
+            .headers(headers)
+            .target(target)
+            .body(body)
+            .build())
     }
 
     fn get_headers_if_any(lines: &[&str]) -> HashMap<String, String> {
@@ -85,9 +90,9 @@ impl HttpRequest {
         }).collect()
     }
 
-    fn get_body_if_any(lines: &[&str]) -> Option<String> {
+    fn get_body_if_any(lines: &[&str]) -> String {
         if lines.is_empty() {
-            return None;
+            return "".to_string();
         }
         let body = lines.iter()
             .filter(|l| l.starts_with("Body"))
@@ -95,6 +100,6 @@ impl HttpRequest {
             .collect::<Vec<&str>>()
             .join("");
 
-        if body.is_empty() { None } else { Some(body) }
+        if body.is_empty() { "".to_string() } else { body }
     }
 }
