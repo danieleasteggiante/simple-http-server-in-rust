@@ -1,21 +1,24 @@
 mod domain;
+mod core;
+
 use std::io::{BufRead, BufReader, Read, Write};
 #[allow(unused_imports)]
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::{env, thread};
 use std::sync::Arc;
+use crate::core::context::Context;
 use crate::domain::http_response::HttpResponse;
+use crate::core::engine;
 
 fn main() {
-    let files_directory = Arc::new(get_files_directory());
-    println!("Files directory: {}", files_directory);
-    let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
+    let config_file_path = env::var("CONFIG_FILE").unwrap_or("config.json".to_string());
+    let context = Arc::new(engine::Engine::from_config(config_file_path.to_string()).create_context());
+    let listener = TcpListener::bind(context.address.clone()).unwrap();
     for stream in listener.incoming() {
         let mut stream = stream.expect("Error accepting connection");
-        let files_directory = Arc::clone(&files_directory); // Clona il riferimento
-        println!("Accepted connection from {:?}", stream.peer_addr().unwrap());
-        thread::spawn(move || handle_request(stream, files_directory));
+        let context_share = Arc::clone(&context); // Clona il riferimento
+        thread::spawn(move || handle_request(stream, context_share));
     }
 }
 
@@ -28,11 +31,20 @@ fn get_files_directory() -> String {
         .unwrap_or("/tmp".to_string())
 }
 
-fn handle_request(mut stream: TcpStream, files_directory: Arc<String>) {
+fn handle_request(mut stream: TcpStream, context: Arc<Context>) {
+    println!("Incoming connection from {:?} - thread {:?}", stream.peer_addr().unwrap(),  thread::current().id());
+    let mut buf_reader = BufReader::new(&mut stream);
+    let raw_request = get_request(&mut buf_reader);
+    let request = domain::http_request::HttpRequest::from_raw(&raw_request).expect("Error parsing request");
+    let response = context.handle_request(&request).as_bytes();
+    stream.write_all(response.as_slice()).unwrap();
+}
+
+fn handle_default_request(mut stream: TcpStream, context: Arc<Context>) {
     println!("Incoming connection from {:?} - thread {:?}", stream.peer_addr().unwrap(),  thread::current().id());
     let mut buf_reader = BufReader::new(&mut stream);
     let request = get_request(&mut buf_reader);
-    let response = get_response(&request, files_directory).as_bytes();
+    let response = get_response(&request, context).as_bytes();
     stream.write_all(response.as_slice()).unwrap();
 }
 
@@ -65,15 +77,15 @@ fn handle_parts(buf_reader: &mut BufReader<&mut TcpStream>) -> (usize,String) {
     (content_length, parts)
 }
 
-fn get_response(parts: &str, files_directory: Arc<String>) -> HttpResponse {
+fn get_response(parts: &str, context: Arc<Context>) -> HttpResponse {
     let mut request = domain::http_request::HttpRequest::from_raw(parts).expect("Error parsing request");
-    request.files_directory(files_directory.to_string());
-    domain::router::get_routes()
+    request.files_directory(context.files_directory.to_string());
+    domain::router::get_example_routes()
         .iter()
         .filter(|route| route.verb == request.method)
         .find(|route| route.matches(&request.target))
         .map_or_else(
             || HttpResponse::new(404, "Not Found".to_string(),vec![], "Not Found".to_string()),
-            |route| (route.method)(&request),
+            |route| (route.method)(&context, &request),
         )
 }
