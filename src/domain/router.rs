@@ -33,7 +33,7 @@ impl Route {
     }
 
     pub fn target(&mut self, target: String) -> &mut Self {
-        self.target = Regex::new(&target).unwrap();
+        self.target = Regex::new(&target).expect("Invalid target regex");
         self
     }
 

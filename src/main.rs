@@ -12,7 +12,8 @@ use crate::domain::http_response::HttpResponse;
 use crate::core::engine;
 
 fn main() {
-    let config_file_path = env::var("CONFIG_FILE").unwrap_or("config.json".to_string());
+    //let config_file_path = get_argument("--config".to_string());
+    let config_file_path = "/home/daniele/Documenti/APPDEV/simple-http-server/files/config.json";
     let context = Arc::new(engine::Engine::from_config(config_file_path.to_string()).create_context());
     let listener = TcpListener::bind(context.address.clone()).unwrap();
     for stream in listener.incoming() {
@@ -22,13 +23,16 @@ fn main() {
     }
 }
 
-fn get_files_directory() -> String {
+fn get_argument(name: String) -> String {
     let args: Vec<String> = env::args().collect();
     args.iter()
-        .position(|a| a == "--directory")
+        .position(|a| a == &name)
         .and_then(|p| args.get(p + 1))
         .cloned()
-        .unwrap_or("/tmp".to_string())
+        .unwrap_or_else(|| {
+            println!("Argument {} not found", name);
+            String::new()
+        })
 }
 
 fn handle_request(mut stream: TcpStream, context: Arc<Context>) {
