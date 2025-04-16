@@ -1,4 +1,5 @@
-{"Address": "127.0.0.1:4221",
-"Routes": [{"Method":"GET", "Path":"^/$", "Resource":"./index.html"}],
-"FilesDirectory": "/home/daniele/Documenti/APPDEV/simple-http-server/files"
+{
+  "Address": "127.0.0.1:4221",
+  "Routes": [{"Method":"GET", "Path":"^/$", "Resource":"./index.html"}],
+" FilesDirectory": "/home/daniele/Documenti/APPDEV/simple-http-server/files"
 }

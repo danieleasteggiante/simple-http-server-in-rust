@@ -20,7 +20,7 @@ impl Context {
 
     pub fn handle_request(&self, request: &HttpRequest) -> HttpResponse {
         for route in &self.routes {
-            if route.matches(&request.target) {
+            if route.matches(&request.target) && route.verb == request.method {
                 return (route.method)(&self, &request);
             }
         }

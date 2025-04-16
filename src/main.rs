@@ -12,8 +12,7 @@ use crate::domain::http_response::HttpResponse;
 use crate::core::engine;
 
 fn main() {
-    //let config_file_path = get_argument("--config".to_string());
-    let config_file_path = "/home/daniele/Documenti/APPDEV/simple-http-server/files/config.json";
+    let config_file_path = get_argument("--config".to_string());
     let context = Arc::new(engine::Engine::from_config(config_file_path.to_string()).create_context());
     let listener = TcpListener::bind(context.address.clone()).unwrap();
     for stream in listener.incoming() {
